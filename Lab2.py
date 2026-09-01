@@ -11,9 +11,7 @@ st.write(
 # Ask user for their OpenAI API key via `st.text_input`.
 # Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
 # via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.secrets.get("OPENAI_API_KEY", "")
-if not openai_api_key or openai_api_key.startswith("sk-proj-REPLACE"):
-    st.info("No OpenAI API key detected. Add your key to `.streamlit/secrets.toml` ")
+openai_api_key = st.secrets.OPENAI_API_KEY
 
 # The three summary styles. The key is the on-screen label; the value is the
 # instruction sent to the LLM as part of the prompt.
