@@ -2,9 +2,8 @@ import streamlit as st
 from openai import OpenAI
 
 # Show title and description.
-st.title("Lab 2 — MY Document question answering (Second Page)")
+st.title("Lab1 - Document question answering")
 st.write(
-    "**You are on Lab 2.** "
     "Upload a document below and ask a question about it – GPT will answer! "
     "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
 )
