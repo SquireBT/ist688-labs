@@ -12,7 +12,24 @@ st.write(
 # Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
 # via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
 openai_api_key = st.secrets.OPENAI_API_KEY
-
+ 
+# Get the API key from Streamlit secrets (./.streamlit/secrets.toml).
+# See https://docs.streamlit.io/develop/concepts/connections/secrets-management
+try:
+    openai_api_key = st.secrets["OPENAI_API_KEY"]
+except Exception:
+    # Raised when no secrets.toml exists (e.g. running locally in Codespaces)
+    # or when the key is not defined.
+    openai_api_key = ""
+ 
+if not openai_api_key:
+    st.info(
+        "No OpenAI API key detected. Add your key to `.streamlit/secrets.toml` "
+        "as `OPENAI_API_KEY = \"sk-...\"` and reload this page.",
+        icon="\N{OLD KEY}",
+    )
+    st.stop()
+ 
 # The three summary styles. The key is the on-screen label; the value is the
 # instruction sent to the LLM as part of the prompt.
 SUMMARY_CHOICES = {
@@ -32,18 +49,23 @@ uploaded_file = st.file_uploader(
     "Upload a document (.txt or .md)", type=("txt", "md")
 )
  
-# --- Options, inline on the page (not the sidebar) --------------------------
+# --- Options, in the sidebar below the lab navigation -----------------------
+# st.navigation renders the Lab 1 / Lab 2 links at the top of the sidebar.
+# The divider and header below separate these Lab 2 options from that nav.
  
-summary_choice = st.radio(
+st.sidebar.divider()
+st.sidebar.header("Lab 2 options")
+ 
+summary_choice = st.sidebar.radio(
     "How should the document be summarized?",
     options=list(SUMMARY_CHOICES.keys()),
 )
  
-use_advanced = st.checkbox("Use advanced model")
+use_advanced = st.sidebar.checkbox("Use advanced model")
  
 # nano is the cheap default; mini is the more capable model.
-model = "gpt-5-nano" if use_advanced else "gpt-5-mini"
-st.caption(f"Model in use: `{model}`")
+model = "gpt-5-mini" if use_advanced else "gpt-5-nano"
+st.sidebar.caption(f"Model in use: `{model}`")
  
 # Nothing is generated until this button is pressed.
 generate = st.button("Generate summary", type="primary", disabled=not uploaded_file)
