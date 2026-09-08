@@ -12,9 +12,7 @@ st.write(
 # Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
 # via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
 openai_api_key = st.secrets.OPENAI_API_KEY
- 
-# Get the API key from Streamlit secrets (./.streamlit/secrets.toml).
-# See https://docs.streamlit.io/develop/concepts/connections/secrets-management
+
 try:
     openai_api_key = st.secrets["OPENAI_API_KEY"]
 except Exception:
@@ -64,7 +62,7 @@ summary_choice = st.sidebar.radio(
 use_advanced = st.sidebar.checkbox("Use advanced model")
  
 # nano is the cheap default; mini is the more capable model.
-model = "gpt-5-mini" if use_advanced else "gpt-5-nano"
+model = "gpt-5-nano" if use_advanced else "gpt-5-mini"
 st.sidebar.caption(f"Model in use: `{model}`")
  
 # Nothing is generated until this button is pressed.
