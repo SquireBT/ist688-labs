@@ -5,7 +5,7 @@ import sys
 # This MUST run before chromadb is imported -- chromadb checks the
 # sqlite3 version at import time.
 __import__('pysqlite3')
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+sys.modules['sqlite3'] = sys.modules['pysqlite3']
 
 import streamlit as st
 from openai import OpenAI
@@ -74,11 +74,19 @@ def load_pdfs_to_collection(folder_path, collection):
     return loaded
 
 # ------------------------------------------------------------ build the vector db
+# The ChromaDB client is cached with @st.cache_resource so only one client
+# is ever constructed per process. Constructing PersistentClient twice for
+# the same path raises an AttributeError inside chromadb on Streamlit Cloud.
+@st.cache_resource
+def get_chroma_client():
+    return chromadb.PersistentClient(path=str(CHROMA_PATH))
+
+
 # Stored in st.session_state so the ChromaDB is only created once
 def create_chromaDB():
 
     # Create ChromaDB client
-    chroma_client = chromadb.PersistentClient(path=str(CHROMA_PATH))
+    chroma_client = get_chroma_client()
     collection = chroma_client.get_or_create_collection(COLLECTION_NAME)
 
     # Check if collection is empty and load PDFs
@@ -101,61 +109,62 @@ st.title('Lab 4: Chatbot using RAG')
 st.sidebar.caption(f'`{COLLECTION_NAME}`: {collection.count()} documents')
 
 # ------------------------------------------------------------ querying a collection -- only used for testing
+# Part A only. Commented out now that the Part B chatbot is implemented.
+#
 # topic = st.sidebar.text_input('Topic', placeholder='Type your topic (e.g., GenAI)...')
-
+#
 # if topic:
 #     client = st.session_state.openai_client
 #     response = client.embeddings.create(
 #         input=topic,
 #         model=EMBED_MODEL)
-
+#
 #     # Get the embedding
 #     query_embedding = response.data[0].embedding
-
+#
 #     # Get the text related to this question (this prompt)
 #     results = collection.query(
 #         query_embeddings=[query_embedding],
 #         n_results=3  # The number of closest documents to return
 #     )
-
+#
 #     # Display the results
 #     st.subheader(f'Results for: {topic}')
-
+#
 #     for i in range(len(results['documents'][0])):
 #         doc = results['documents'][0][i]
 #         doc_id = results['ids'][0][i]
-
+#
 #         st.write(f'**{i+1}. {doc_id}**')
-
+#
 # else:
 #     st.info('Enter a topic in the sidebar to search the collection')
 
-# ------------------------------------------------------------ part b
-# Comment out the "querying a collection" section above and
-# implement the chatbot here once Part A testing is done.
+# ============================================================ PART B ============================================================
+
+# ------------------------------------------------------------ part b: config
+CHAT_MODEL = 'gpt-5-mini'
+N_RESULTS = 3          # number of closest documents to send to the LLM
+MAX_DOC_CHARS = 6000   # per-document cap so the prompt stays a reasonable size
+
 # ------------------------------------------------------------ part b: retrieval
 # Embeds the user's question and returns the closest documents
 # from the collection as (doc_id, text) pairs
-
-CHAT_MODEL = 'gpt-5-mini'
-N_RESULTS = 3          # number of closest documents to send to the LLM
-MAX_DOC_CHARS = 6000 
-
 def retrieve_context(question):
     client = st.session_state.openai_client
     response = client.embeddings.create(
         input=question,
         model=EMBED_MODEL)
- 
+
     # Get the embedding
     query_embedding = response.data[0].embedding
- 
+
     # Get the text related to this question (this prompt)
     results = collection.query(
         query_embeddings=[query_embedding],
         n_results=N_RESULTS
     )
- 
+
     retrieved = []
     for i in range(len(results['documents'][0])):
         doc = results['documents'][0][i]
@@ -172,47 +181,47 @@ BASE_PROMPT = (
     "documents do not cover it, then answer from general knowledge and make clear that "
     "the extra information did not come from the syllabi. Keep answers clear and concise."
 )
- 
+
 def build_system_prompt(retrieved):
     parts = [BASE_PROMPT, "\n\nRetrieved course syllabi:"]
     for doc_id, text in retrieved:
         parts.append(f"\n=== {doc_id} ===\n{text}")
     return "\n".join(parts)
- 
+
 # ------------------------------------------------------------ part b: chat loop
 st.write("Ask a question about the course syllabi. Each question is embedded and "
 "used to retrieve the most relevant syllabi from the vector database, which are "
 "then added to the prompt sent to the LLM.")
- 
+
 if 'messages' not in st.session_state:
     st.session_state['messages'] = [
         {'role': 'assistant', 'content': 'Ask me anything about the iSchool course syllabi.'}
     ]
- 
+
 for msg in st.session_state.messages:
     chat_msg = st.chat_message(msg['role'])
     chat_msg.write(msg['content'])
- 
+
 if question := st.chat_input('Ask a question about the courses'):
     st.session_state.messages.append({'role': 'user', 'content': question})
- 
+
     with st.chat_message('user'):
         st.markdown(question)
- 
+
     # Fetch the relevant documents for this question and add them to the prompt
     retrieved = retrieve_context(question)
     system_prompt = build_system_prompt(retrieved)
- 
+
     context = [{'role': 'system', 'content': system_prompt}] + st.session_state.messages
     stream = st.session_state.openai_client.chat.completions.create(
         model=CHAT_MODEL,
         messages=context,
         stream=True)
- 
+
     with st.chat_message('assistant'):
         response = st.write_stream(stream)
     st.session_state.messages.append({'role': 'assistant', 'content': response})
- 
+
     # Show which documents were sent to the LLM for this question
     with st.sidebar.expander(f'Retrieved for: {question[:40]}'):
         for i, (doc_id, _) in enumerate(retrieved, start=1):
